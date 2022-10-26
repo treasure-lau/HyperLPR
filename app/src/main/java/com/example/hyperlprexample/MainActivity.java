@@ -29,15 +29,6 @@ import android.widget.ImageView;
 import android.widget.SeekBar;
 import android.widget.TextView;
 
-
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.InputStream;
-
-import com.ricent.lib.hyperlpr.PlateInfo;
-import com.ricent.lib.hyperlpr.PlateRecognition;
-import com.ricent.lib.hyperlpr.Recognizer;
-
 public class MainActivity extends Activity implements AlertDialog.OnClickListener, View.OnClickListener {
     public Button btn;
     public Button recogBtn;

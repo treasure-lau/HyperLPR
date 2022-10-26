@@ -1,6 +1,7 @@
 package com.example.hyperlprexample;
 
 import android.app.Activity;
+import android.graphics.Bitmap;
 import android.media.Image;
 import android.os.Bundle;
 import android.view.View;
@@ -10,11 +11,11 @@ import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.TextView;
 
-import com.ricent.lib.hyperlpr.PlateInfo;
-
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
 import org.greenrobot.eventbus.ThreadMode;
+
+import java.util.Map;
 
 
 /**
@@ -79,9 +80,9 @@ public class CameraActivity extends Activity implements View.OnClickListener {
     }
 
     @Subscribe(threadMode = ThreadMode.MAIN)
-    public void onMessageEvent(PlateInfo plate){
-        plateTv.setText(plate.plateName);
-        image.setImageBitmap(plate.bitmap);
+    public void onMessageEvent(Map<String, Object> plate){
+        plateTv.setText((String)plate.get("plateName"));
+        image.setImageBitmap((Bitmap)plate.get("bitmap"));
         stopPreview();
     }
 

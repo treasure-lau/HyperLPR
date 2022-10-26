@@ -8,7 +8,20 @@ import org.opencv.core.Mat;
 import org.opencv.core.Size;
 import org.opencv.imgproc.Imgproc;
 
+import java.util.HashMap;
+import java.util.Map;
+
 public class Recognizer {
+    private boolean simple;
+
+    public boolean isSimple() {
+        return simple;
+    }
+
+    public void setSimple(boolean simple) {
+        this.simple = simple;
+    }
+
     private final long object;
 
     public boolean isError() {
@@ -33,7 +46,10 @@ public class Recognizer {
         }
     }
 
-    public PlateInfo simple(Bitmap bmp, int dp) {
+    public Map<String, Object> simple(Bitmap bmp, int dp) {
+        if (!simple) {
+            return null;
+        }
         if (isError()) {
             return null;
         }
@@ -44,7 +60,11 @@ public class Recognizer {
         Size sz = new Size(new_w, new_h);
         Utils.bitmapToMat(bmp, mat_src);
         Imgproc.resize(mat_src, mat_src, sz);
-        return PlateRecognition.PlateInfoRecognization(mat_src.getNativeObjAddr(), object);
+        PlateInfo plateInfo = PlateRecognition.PlateInfoRecognization(mat_src.getNativeObjAddr(), object);
+        Map<String, Object> map = new HashMap<>();
+        map.put("plateName", plateInfo.plateName);
+        map.put("bitmap", plateInfo.bitmap);
+        return map;
     }
 
     public void release() {

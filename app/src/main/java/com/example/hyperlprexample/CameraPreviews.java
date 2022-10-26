@@ -3,35 +3,27 @@ package com.example.hyperlprexample;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.graphics.Canvas;
-import android.graphics.Color;
 import android.graphics.ImageFormat;
 import android.graphics.Matrix;
 import android.graphics.Paint;
-import android.graphics.PorterDuff;
 import android.graphics.Rect;
 import android.graphics.YuvImage;
 import android.hardware.Camera;
-import android.media.Image;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.HandlerThread;
 
 import androidx.core.content.ContextCompat;
 
-import android.text.TextUtils;
 import android.util.Log;
 import android.view.Display;
 import android.view.MotionEvent;
 import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
-import android.view.View;
 import android.view.WindowManager;
-import android.widget.ImageView;
 
-import com.ricent.lib.hyperlpr.PlateInfo;
-import com.ricent.lib.hyperlpr.Recognizer;
+import com.ricent.lib.hyperlpr.RecognizerProxy;
 
 import org.greenrobot.eventbus.EventBus;
 
@@ -40,14 +32,9 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.security.Policy;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * @author by hs-johnny
@@ -67,7 +54,7 @@ public class CameraPreviews extends SurfaceView implements SurfaceHolder.Callbac
      * 停止识别
      */
     private boolean isStopReg;
-    private Recognizer recognizer;
+    private RecognizerProxy recognizer;
 
     public CameraPreviews(Context context) {
         super(context);
@@ -126,8 +113,10 @@ public class CameraPreviews extends SurfaceView implements SurfaceHolder.Callbac
         mCamera.release();
         mCamera = null;
         getHandler().postDelayed(() -> {
-            recognizer.release();
-            recognizer = null;
+            if (recognizer != null) {
+                recognizer.release();
+                recognizer = null;
+            }
         }, 1000);
     }
 
@@ -179,17 +168,17 @@ public class CameraPreviews extends SurfaceView implements SurfaceHolder.Callbac
             BitmapFactory.Options options = new BitmapFactory.Options();
             options.inPreferredConfig = Bitmap.Config.RGB_565;
             Bitmap bitmap = BitmapFactory.decodeByteArray(rawImage, 0, rawImage.length, options);
-            PlateInfo result = recognizer.simple(rotateBitmap(bitmap), 8);
+            Map<String, Object> result = recognizer.simple(rotateBitmap(bitmap), 8);
             bitmap.recycle();
-            Log.e(TAG, "onPreviewFrame: " + result.plateName + "----time: " + System.currentTimeMillis());
-            if (!isStopReg && result != null && !TextUtils.isEmpty(result.plateName)) {
+            if (!isStopReg && result != null) {
+                Log.e(TAG, "onPreviewFrame: " + result.get("plateName") + "----time: " + System.currentTimeMillis());
                 isStopReg = true;
                 sendPlate(result);
             }
         }
     }
 
-    private void sendPlate(PlateInfo plate) {
+    private void sendPlate(Map<String, Object> plate) {
         EventBus.getDefault().post(plate);
     }
 
@@ -290,70 +279,68 @@ public class CameraPreviews extends SurfaceView implements SurfaceHolder.Callbac
         camera.setParameters(parameters);
     }
 
-    private void copyFilesFromAssets(Context context, String oldPath, String newPath) {
-        try {
-            String[] fileNames = context.getAssets().list(oldPath);
-            if (fileNames.length > 0) {
-                // directory
-                File file = new File(newPath);
-                if (!file.mkdir()) {
-                    Log.d("mkdir", "can't make folder");
+    private void copyFilesFromAssets(Context context, String oldPath, String newPath) throws Exception {
+        String[] fileNames = context.getAssets().list(oldPath);
+        if (fileNames != null && fileNames.length > 0) {
+            // directory
+            File file = new File(newPath);
+            if (!file.mkdir()) {
+                Log.d("mkdir", "can't make folder");
 
-                }
-//                    return false;                // copy recursively
-                for (String fileName : fileNames) {
-                    copyFilesFromAssets(context, oldPath + "/" + fileName,
-                            newPath + "/" + fileName);
-                }
-            } else {
-                // file
-                InputStream is = context.getAssets().open(oldPath);
-                FileOutputStream fos = new FileOutputStream(new File(newPath));
-                byte[] buffer = new byte[1024];
-                int byteCount;
-                while ((byteCount = is.read(buffer)) != -1) {
-                    fos.write(buffer, 0, byteCount);
-                }
-                fos.flush();
-                is.close();
-                fos.close();
             }
-        } catch (Exception e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
+//                    return false;                // copy recursively
+            for (String fileName : fileNames) {
+                copyFilesFromAssets(context, oldPath + "/" + fileName,
+                        newPath + "/" + fileName);
+            }
+        } else {
+            // file
+            InputStream is = context.getAssets().open(oldPath);
+            FileOutputStream fos = new FileOutputStream(new File(newPath));
+            byte[] buffer = new byte[1024];
+            int byteCount;
+            while ((byteCount = is.read(buffer)) != -1) {
+                fos.write(buffer, 0, byteCount);
+            }
+            fos.flush();
+            is.close();
+            fos.close();
         }
     }
 
 
     private void initRecognizer() {
-        String assetPath = "pr";
-        String sdcardPath = Environment.getExternalStorageDirectory()
-                + File.separator + assetPath;
-        copyFilesFromAssets(getContext(), assetPath, sdcardPath);
-        String cascade_filename = sdcardPath
-                + File.separator + "cascade.xml";
-        String finemapping_prototxt = sdcardPath
-                + File.separator + "HorizonalFinemapping.prototxt";
-        String finemapping_caffemodel = sdcardPath
-                + File.separator + "HorizonalFinemapping.caffemodel";
-        String segmentation_prototxt = sdcardPath
-                + File.separator + "Segmentation.prototxt";
-        String segmentation_caffemodel = sdcardPath
-                + File.separator + "Segmentation.caffemodel";
-        String character_prototxt = sdcardPath
-                + File.separator + "CharacterRecognization.prototxt";
-        String character_caffemodel = sdcardPath
-                + File.separator + "CharacterRecognization.caffemodel";
-        String segmentationfree_prototxt = sdcardPath
-                + File.separator + "SegmenationFree-Inception.prototxt";
-        String segmentationfree_caffemodel = sdcardPath
-                + File.separator + "SegmenationFree-Inception.caffemodel";
-        recognizer = new Recognizer(
-                cascade_filename,
-                finemapping_prototxt, finemapping_caffemodel,
-                segmentation_prototxt, segmentation_caffemodel,
-                character_prototxt, character_caffemodel,
-                segmentationfree_prototxt, segmentationfree_caffemodel
-        );
+        try {
+            String assetPath = "pr";
+            String sdcardPath = Environment.getExternalStorageDirectory()
+                    + File.separator + assetPath;
+            copyFilesFromAssets(getContext(), assetPath, sdcardPath);
+            String cascade_filename = sdcardPath
+                    + File.separator + "cascade.xml";
+            String finemapping_prototxt = sdcardPath
+                    + File.separator + "HorizonalFinemapping.prototxt";
+            String finemapping_caffemodel = sdcardPath
+                    + File.separator + "HorizonalFinemapping.caffemodel";
+            String segmentation_prototxt = sdcardPath
+                    + File.separator + "Segmentation.prototxt";
+            String segmentation_caffemodel = sdcardPath
+                    + File.separator + "Segmentation.caffemodel";
+            String character_prototxt = sdcardPath
+                    + File.separator + "CharacterRecognization.prototxt";
+            String character_caffemodel = sdcardPath
+                    + File.separator + "CharacterRecognization.caffemodel";
+            String segmentationfree_prototxt = sdcardPath
+                    + File.separator + "SegmenationFree-Inception.prototxt";
+            String segmentationfree_caffemodel = sdcardPath
+                    + File.separator + "SegmenationFree-Inception.caffemodel";
+            recognizer = new RecognizerProxy(cascade_filename,
+                    finemapping_prototxt, finemapping_caffemodel,
+                    segmentation_prototxt, segmentation_caffemodel,
+                    character_prototxt, character_caffemodel,
+                    segmentationfree_prototxt, segmentationfree_caffemodel);
+            recognizer.setSimple(true);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 }
