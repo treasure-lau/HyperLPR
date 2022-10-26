@@ -1,3 +1,3 @@
 install: 
 FILE="-Dfile=hyperlpr-1.0" 
-mvn install:install-file $FILE -DgroupId=com.ricent.lib -DartifactId=hyperlpr -Dversion=1.0 -Dpackaging=aar -DpomFile=pom.xml
+mvn install:install-file $FILE -DgroupId=com.github.treasure-lau -DartifactId=HyperLPR -Dversion=1.0 -Dpackaging=aar -DpomFile=pom.xml
