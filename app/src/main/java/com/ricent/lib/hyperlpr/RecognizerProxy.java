@@ -12,6 +12,7 @@ public class RecognizerProxy {
     private static final String TAG = "RecognizerProxy";
     private Class<?> clazz;
     private Object object;
+    private boolean isRelease = false;
 
     public RecognizerProxy(String cascade_filename,
                            String finemapping_prototxt, String finemapping_caffemodel,
@@ -32,7 +33,7 @@ public class RecognizerProxy {
     }
 
     public Map<String, Object> simple(Bitmap bmp, int dp) {
-        if (isError()) {
+        if (isInitError()) {
             return null;
         }
         try {
@@ -49,19 +50,24 @@ public class RecognizerProxy {
     }
 
     public void release() {
-        if (isError()) {
+        if (isInitError()) {
+            return;
+        }
+        if (isRelease) {
             return;
         }
         try {
+            Log.d(TAG, "release");
             Method method = clazz.getMethod("release");
             method.invoke(object);
+            isRelease = true;
         } catch (Exception e) {
             Log.e(TAG, e.getMessage(), e);
         }
     }
 
     public int isSimple() {
-        if (isError()) {
+        if (isInitError()) {
             return -1;
         }
         try {
@@ -80,7 +86,7 @@ public class RecognizerProxy {
     }
 
     public void setSimple(boolean isSimple) {
-        if (isError()) {
+        if (isInitError()) {
             return;
         }
         try {
@@ -91,7 +97,24 @@ public class RecognizerProxy {
         }
     }
 
-    private boolean isError() {
+    public boolean isError() {
+        if (isInitError()) {
+            return true;
+        }
+        try {
+            Method method = clazz.getMethod("isError");
+            Object result = method.invoke(object);
+            if (result instanceof Boolean) {
+                return (Boolean) result;
+            }
+            return true;
+        } catch (Exception e) {
+            Log.e(TAG, e.getMessage(), e);
+            return true;
+        }
+    }
+
+    private boolean isInitError() {
         return clazz == null || object == null;
     }
 }
